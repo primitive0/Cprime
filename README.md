@@ -17,10 +17,9 @@ fn I32 main() {
 1. Компилятор C и C++ с поддержкой стандарта C++23 (подходят Clang и GCC)
 2. CMake версии ≥3.28
 3. LLVM 22, вместе с утилитами lit и FileCheck [^1]
-4. Пакетный менеджер Conan 2
 
 ```sh
-make setup BUILD_TYPE=<тип сборки, Debug или Release>
+make configure BUILD_TYPE=<Debug или Release>
 
 make build
 ```
@@ -31,7 +30,7 @@ make build
 make test
 ```
 
-#### Автоматическое обновление эталонов FileTest тестов
+### Автоматическое обновление эталонов FileTest тестов
 
 Иногда, после внесения изменений в код, нужно пересоздать эталонные файлы FileTest тестов.
 

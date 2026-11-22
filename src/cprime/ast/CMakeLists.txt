@@ -4,5 +4,5 @@ target_link_libraries(cprime_ast
   PUBLIC
     cprime_headers
     cprime_support
-    Boost::headers
+    Boost::intrusive
     magic_enum::magic_enum)

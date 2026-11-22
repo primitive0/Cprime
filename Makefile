@@ -2,18 +2,13 @@
 
 BUILD_TYPE ?= Debug
 
-.PHONY: setup
-setup:
-	conan install \
-	  --build=missing \
-	  -s build_type=$(BUILD_TYPE) \
-	  .
+.PHONY: configure
+configure:
 	cmake \
 	  -S . \
 	  -B build/ \
 	  $$(command -v ninja >/dev/null && printf '%s' '-G Ninja') \
-	  -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-	  -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
+	  -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 
 .PHONY: build
 build:
@@ -39,3 +34,7 @@ format-code:
 	  -name '*.c' -o -name '*.h' -o \
 	  -name '*.cpp' -o -name '*.hpp' \
 	| xargs -r clang-format -i
+
+.PHONY: vendor
+vendor:
+	cmake -P cmake/vendor_deps.cmake
