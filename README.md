@@ -5,7 +5,7 @@ C-подобным синтаксисом и ручным управлением
 
 ```c3
 fn I32 main() {
-    println("Hello, world!");
+    println("Hello, world!");
     return 0;
 }
 ```
