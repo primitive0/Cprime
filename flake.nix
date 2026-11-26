@@ -6,7 +6,7 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      llvm = pkgs.llvmPackages_22;
+      llvm = pkgs.llvmPackages_23;
     in
     {
       formatter.${system} = pkgs.nixfmt-tree;

@@ -1,5 +1,6 @@
 #include "lower.hpp"
 
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -67,7 +68,7 @@ private:
 
         // LLVM требует, чтобы все базовые блоки завершались терминальной
         // инструкцией.
-        if (builder_.GetInsertBlock()->getTerminator() == nullptr) {
+        if (!builder_.GetInsertBlock()->hasTerminator()) {
             builder_.CreateUnreachable();
         }
     }
@@ -85,7 +86,7 @@ private:
 
     auto visit(ast::ReturnStmt* return_stmt) -> void
     {
-        if (builder_.GetInsertBlock()->getTerminator() != nullptr) {
+        if (builder_.GetInsertBlock()->hasTerminator()) {
             return;
         }
 
@@ -102,7 +103,7 @@ private:
 
     auto visit(ast::ExprStmt* expr_stmt) -> void
     {
-        if (builder_.GetInsertBlock()->getTerminator() != nullptr) {
+        if (builder_.GetInsertBlock()->hasTerminator()) {
             return;
         }
 
