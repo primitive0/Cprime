@@ -1,0 +1,9 @@
+fn I32 main() {
+    I32 x = 40, y = x + 2;
+    return y;
+}
+
+fn Unit foo() {
+    I32 x;
+    I32 y;
+}

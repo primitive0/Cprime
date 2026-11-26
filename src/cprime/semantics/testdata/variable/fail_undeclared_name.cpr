@@ -1,0 +1,7 @@
+fn I32 main() {
+    return missing;
+}
+
+fn Unit test2() {
+    I32 x = _;
+}

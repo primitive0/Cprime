@@ -340,14 +340,23 @@ TEST_CASE("Can lex operators", "[cprime][lex]")
             },
         },
         TC{
-            "+-*/%\n",
+            "=\n",
+            {
+                {TokenKind::Assign, "=", LineColumn{1, 1}},
+                {TokenKind::NewLine, "\n", LineColumn{1, 2}},
+                {TokenKind::Eof, "", LineColumn{2, 1}},
+            },
+        },
+        TC{
+            "+-*/%=\n",
             {
                 {TokenKind::Plus, "+", LineColumn{1, 1}},
                 {TokenKind::Minus, "-", LineColumn{1, 2}},
                 {TokenKind::Star, "*", LineColumn{1, 3}},
                 {TokenKind::Slash, "/", LineColumn{1, 4}},
                 {TokenKind::Percent, "%", LineColumn{1, 5}},
-                {TokenKind::NewLine, "\n", LineColumn{1, 6}},
+                {TokenKind::Assign, "=", LineColumn{1, 6}},
+                {TokenKind::NewLine, "\n", LineColumn{1, 7}},
                 {TokenKind::Eof, "", LineColumn{2, 1}},
             },
         });

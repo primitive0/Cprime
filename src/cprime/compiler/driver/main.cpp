@@ -4,6 +4,7 @@
 #include <cprime/compiler/codegen_llvm/codegen.hpp>
 #include <cprime/diagnostics/diagnostic_recorder.hpp>
 #include <cprime/parse/parse.hpp>
+#include <cprime/semantics/semantics.hpp>
 #include <cprime/source/source_buffer.hpp>
 
 // TODO: refactor
@@ -19,8 +20,13 @@ auto main(int argc, char** argv) -> int
     cprime::diagnostics::DiagnosticRecorder diagnostics{};
     bool parsing_success = cprime::parse::parse_cprime_source(
         ast_context, diagnostics, *source_buffer);
-    if (!parsing_success) {
-        std::println(stderr, "parsing finished with errors");
+    bool sema_success = false;
+    if (parsing_success) {
+        sema_success = cprime::semantics::check_cprime_semantics(
+            ast_context, diagnostics);
+    }
+    if (!sema_success) {
+        std::println(stderr, "finished with errors");
         for (const auto& diag : diagnostics) {
             auto loc = diag.span.location();
             std::println(stderr, "{}:{}:{}: {}: {}",

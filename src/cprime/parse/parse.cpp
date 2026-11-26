@@ -145,6 +145,12 @@ private:
         case TokenKind::Return:
             return parse_return_stmt();
         default:
+            break;
+        }
+
+        if (token_.kind() == TokenKind::Identifier && token_.lexeme() == "I32") {
+            return parse_variable_decl_stmt();
+        } else {
             return parse_expr_stmt();
         }
     }
@@ -156,6 +162,45 @@ private:
         match(TokenKind::Semicolon);
 
         return ast_context_->make<ast::EmptyStmt>(capture_span(marker));
+    }
+
+    auto parse_variable_decl_stmt() -> ast::VariableDeclStmt&
+    {
+        SourceMarker marker = start_capturing();
+
+        ast::List<ast::VariableDecl> decls{};
+        parse_type();
+        while (true) {
+            decls.push_back(parse_variable_decl());
+
+            if (token_.kind() == TokenKind::Semicolon) {
+                advance();
+                return ast_context_->make<ast::VariableDeclStmt>(
+                    capture_span(marker),
+                    std::move(decls));
+            }
+
+            // TODO: улучшить диагностику здесь
+            match(TokenKind::Comma);
+        }
+    }
+
+    auto parse_variable_decl() -> ast::VariableDecl&
+    {
+        SourceMarker marker = start_capturing();
+
+        std::string_view name = match(TokenKind::Identifier).lexeme();
+
+        ast::Expr* initializer = nullptr;
+        if (token_.kind() == TokenKind::Assign) {
+            advance();
+            initializer = &parse_expr();
+        }
+
+        return ast_context_->make<ast::VariableDecl>(
+            capture_span(marker),
+            name,
+            initializer);
     }
 
     auto parse_return_stmt() -> ast::ReturnStmt&
@@ -396,7 +441,7 @@ private:
     auto parse_type() -> void
     {
         Token identifier = match(TokenKind::Identifier);
-        if (identifier.lexeme() != "I32") {
+        if (identifier.lexeme() != "I32" && identifier.lexeme() != "Unit") {
             diagnostic_sink_->emit_error(
                 std::format(
                     "unknown type name '{}'",
@@ -462,6 +507,7 @@ private:
             token_.span().cbegin()};
     }
 
+    // TODO: rename to 'capture'
     auto capture_span(SourceMarker start) -> SourceSpan
     {
         CPRIME_DEBUG_ASSERT(

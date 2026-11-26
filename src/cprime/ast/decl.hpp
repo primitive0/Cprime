@@ -4,6 +4,7 @@
 #include "list.hpp"
 #include "node.hpp"
 #include "stmt.hpp"
+
 #include <cprime/support/prelude.hpp>
 #include <cprime/source/source_buffer.hpp>
 
@@ -29,7 +30,7 @@ public:
         return name_;
     }
 
-    auto body() -> Block&
+    auto body() -> Own<Block>
     {
         return *body_;
     }
@@ -38,6 +39,52 @@ private:
     std::string_view name_;
     Block* body_;
 };
+
+class BindingDecl : public Node
+{
+public:
+    auto name() -> std::string_view
+    {
+        return name_;
+    }
+
+protected:
+    explicit BindingDecl(NodeKind kind, source::SourceSpan span, std::string_view name)
+        : Node{kind, span}
+        , name_{name}
+    {
+    }
+
+private:
+    std::string_view name_;
+};
+
+class VariableDecl final
+    : public BindingDecl
+    , public ListHook
+{
+public:
+    explicit VariableDecl(
+        source::SourceSpan span,
+        std::string_view name,
+        Opt<Expr&> initializer)
+        : BindingDecl{NodeKind::VariableDecl, span, name}
+        , initializer_{initializer}
+    {
+    }
+
+    auto initializer() -> Opt<Own<Expr>>
+    {
+        return initializer_;
+    }
+
+private:
+    Opt<Expr&> initializer_;
+};
+
+// class ParameterDecl : public BindingDecl
+// {
+// };
 
 } // namespace cprime::ast
 

@@ -1,0 +1,4 @@
+ERROR
+
+Error <2:12> "use of undeclared identifier 'missing'"
+Error <6:13> "use of undeclared identifier '_'"

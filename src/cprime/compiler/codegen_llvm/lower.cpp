@@ -1,5 +1,6 @@
 #include "lower.hpp"
 
+#include <unordered_map>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
@@ -8,11 +9,39 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
 #include <cprime/ast/ast.hpp>
+#include <cprime/ast/walker.hpp>
 #include <cprime/support/contract.hpp>
 
 namespace cprime::codegen_llvm {
 
 namespace {
+
+template<typename Callback>
+class VariableDeclFinder final : private ast::Walker<VariableDeclFinder<Callback>>
+{
+    friend class ast::Walker<VariableDeclFinder<Callback>>;
+
+public:
+    explicit VariableDeclFinder(Callback callback)
+        : callback_{std::move(callback)}
+    {
+    }
+
+    auto run(ast::FunctionDecl& function_decl) -> void
+    {
+        this->walk(function_decl);
+    }
+
+private:
+    CPRIME_AST_WALK_EDGES(FunctionBody, BlockStmts, VariableDecls)
+
+    auto post_visit(ast::VariableDecl& decl) -> void
+    {
+        callback_(decl);
+    }
+
+    Callback callback_;
+};
 
 class LowerToLlvmModule final
     : private ast::StmtVisitor<>
@@ -63,19 +92,39 @@ private:
 
         builder_.SetInsertPoint(
             llvm::BasicBlock::Create(*llvm_context_, "entry", ir_func));
+        emit_local_variable_allocas(function_decl);
         visit(function_decl.body());
 
-        // LLVM требует, чтобы все базовые блоки завершались терминальной
-        // инструкцией.
         if (!builder_.GetInsertBlock()->hasTerminator()) {
             builder_.CreateUnreachable();
         }
     }
 
+    auto emit_local_variable_allocas(ast::FunctionDecl& function_decl) -> void
+    {
+        local_variable_slots_.clear();
+
+        // Keep allocas in the entry block so LLVM can promote them to registers.
+        VariableDeclFinder{[this](ast::VariableDecl& decl) {
+            llvm::AllocaInst* slot = builder_.CreateAlloca(
+                builder_.getInt32Ty(),
+                nullptr,
+                llvm::Twine{"var.", decl.name()});
+            local_variable_slots_.emplace(&decl, slot);
+        }}.run(function_decl);
+    }
+
     auto visit(ast::Block& block) -> void
     {
         for (ast::Stmt& stmt : block.stmts()) {
-            dispatch_stmt(stmt);
+            if (builder_.GetInsertBlock()->hasTerminator()) {
+                break;
+            }
+            if (stmt.kind() == ast::NodeKind::VariableDeclStmt) {
+                visit(static_cast<ast::VariableDeclStmt&>(stmt));
+            } else {
+                dispatch_stmt(stmt);
+            }
         }
     }
 
@@ -83,12 +132,18 @@ private:
     {
     }
 
+    auto visit(ast::VariableDeclStmt& stmt) -> void
+    {
+        for (ast::VariableDecl& decl : stmt.decls()) {
+            if (auto initializer = decl.initializer()) {
+                llvm::Value* value = dispatch_expr(*initializer);
+                builder_.CreateStore(value, get_local_variable_slot(decl));
+            }
+        }
+    }
+
     auto visit(ast::ReturnStmt& return_stmt) -> void
     {
-        if (builder_.GetInsertBlock()->hasTerminator()) {
-            return;
-        }
-
         ast::Expr& return_value = return_stmt.value();
         CPRIME_ASSERT(
             return_value.kind() == ast::NodeKind::IntegerExpr,
@@ -102,10 +157,6 @@ private:
 
     auto visit(ast::ExprStmt& expr_stmt) -> void
     {
-        if (builder_.GetInsertBlock()->hasTerminator()) {
-            return;
-        }
-
         std::ignore = dispatch_expr(expr_stmt.expr());
     }
 
@@ -122,7 +173,11 @@ private:
 
     auto visit(ast::NameExpr& name_expr) -> llvm::Value*
     {
-        CPRIME_WIP();
+        ast::BindingDecl& binding = name_expr.resolved_binding();
+        return builder_.CreateLoad(
+            builder_.getInt32Ty(),
+            get_local_variable_slot(binding),
+            llvm::Twine{"load.", binding.name()});
     }
 
     auto visit(ast::CallExpr& call_expr) -> llvm::Value*
@@ -246,12 +301,20 @@ private:
         CPRIME_UNREACHABLE("Unknown binary operator.");
     }
 
+    auto get_local_variable_slot(ast::BindingDecl& binding) -> llvm::AllocaInst*
+    {
+        auto it = local_variable_slots_.find(&binding);
+        CPRIME_ASSERT(it != local_variable_slots_.end(), "Local variable slot not found.");
+        return it->second;
+    }
+
 private:
     llvm::LLVMContext* llvm_context_;
     llvm::Module* module_;
     llvm::IRBuilder<> builder_;
 
     ast::AstContext* ast_context_;
+    std::unordered_map<ast::BindingDecl*, llvm::AllocaInst*> local_variable_slots_;
 };
 
 } // namespace

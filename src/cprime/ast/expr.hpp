@@ -10,6 +10,8 @@
 
 namespace cprime::ast {
 
+class BindingDecl;
+
 class Expr
     : public Node
     , public ListHook
@@ -85,6 +87,7 @@ public:
     explicit NameExpr(source::SourceSpan span, std::string_view name)
         : Expr{NodeKind::NameExpr, span}
         , name_{name}
+        , binding_decl_{}
     {
     }
 
@@ -93,8 +96,19 @@ public:
         return name_;
     }
 
+    auto resolved_binding() -> Ref<BindingDecl>
+    {
+        return **binding_decl_;
+    }
+
+    auto set_resolved_binding(BindingDecl& binding) -> void
+    {
+        binding_decl_ = &binding;
+    }
+
 private:
     std::string_view name_;
+    LateInit<BindingDecl*> binding_decl_;
 };
 
 enum class CalleeKind {
@@ -122,7 +136,7 @@ public:
         return callee_;
     }
 
-    auto args() -> ExprList&
+    auto args() -> Own<ExprList>
     {
         return *args_;
     }
@@ -178,7 +192,7 @@ public:
         return op_;
     }
 
-    auto operand() -> Expr&
+    auto operand() -> Own<Expr>
     {
         return *operand_;
     }
@@ -215,12 +229,12 @@ public:
         return op_;
     }
 
-    auto left() -> Expr&
+    auto left() -> Own<Expr>
     {
         return *left_;
     }
 
-    auto right() -> Expr&
+    auto right() -> Own<Expr>
     {
         return *right_;
     }

@@ -11,6 +11,8 @@
 
 namespace cprime::ast {
 
+class VariableDecl;
+
 class Stmt
     : public Node
     , public ListHook
@@ -33,6 +35,24 @@ public:
     }
 };
 
+class VariableDeclStmt final : public Stmt
+{
+public:
+    explicit VariableDeclStmt(source::SourceSpan span, List<VariableDecl> decls)
+        : Stmt{NodeKind::VariableDeclStmt, span}
+        , decls_{std::move(decls)}
+    {
+    }
+
+    auto decls() -> List<VariableDecl>&
+    {
+        return decls_;
+    }
+
+private:
+    List<VariableDecl> decls_;
+};
+
 class ReturnStmt final : public Stmt
 {
 public:
@@ -42,7 +62,7 @@ public:
     {
     }
 
-    auto value() -> Expr&
+    auto value() -> Own<Expr>
     {
         return *value_;
     }
@@ -60,7 +80,7 @@ public:
     {
     }
 
-    auto expr() -> Expr&
+    auto expr() -> Own<Expr>
     {
         return *expr_;
     }

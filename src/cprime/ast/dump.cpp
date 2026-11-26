@@ -112,6 +112,27 @@ private:
         node_end();
     }
 
+    auto visit(VariableDeclStmt& stmt) -> void
+    {
+        node("VariableDeclStmt", stmt.span());
+        node_end();
+
+        ChildLevelGuard guard{*this};
+        dump_children(stmt.decls(), /*is_last=*/true);
+    }
+
+    auto visit(VariableDecl& decl) -> void
+    {
+        node("VariableDecl", decl.span());
+        node_attr(decl.name());
+        node_end();
+
+        ChildLevelGuard guard{*this};
+        if (auto initializer = decl.initializer()) {
+            dump_child(*initializer, /*is_last=*/true);
+        }
+    }
+
     auto visit(ReturnStmt& return_stmt) -> void
     {
         node("ReturnStmt", return_stmt.span());
@@ -292,6 +313,9 @@ private:
     auto dispatch(T& child) -> void
     {
         if constexpr (std::is_same_v<T, Stmt>) {
+            if (child.kind() == NodeKind::VariableDeclStmt) {
+                return visit(static_cast<VariableDeclStmt&>(child));
+            }
             return dispatch_stmt(child);
         } else if constexpr (std::is_same_v<T, Expr>) {
             return dispatch_expr(child);

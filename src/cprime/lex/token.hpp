@@ -21,6 +21,7 @@ enum class TokenKind {
     Star,
     Slash,
     Percent,
+    Assign,
 
     // Пунктуация
     ParenOpen,
@@ -154,6 +155,8 @@ inline auto describe(TokenKind kind) -> std::string
         return "'/'";
     case Percent:
         return "'%'";
+    case Assign:
+        return "'='";
 
     case ParenOpen:
         return "'('";

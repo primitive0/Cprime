@@ -18,11 +18,13 @@ build:
 test: build
 	ctest --test-dir build/ --progress \
 	&& build/src/cprime/parse/cprime_parse_file_test . \
+	&& build/src/cprime/semantics/cprime_semantics_file_test . \
 	&& cmake --build build/ --target check
 
 .PHONY: update-filetests
 update-filetests: build
-	build/src/cprime/parse/cprime_parse_file_test -u .
+	build/src/cprime/parse/cprime_parse_file_test -u . \
+	&& build/src/cprime/semantics/cprime_semantics_file_test -u .
 
 .PHONY: clean
 clean:

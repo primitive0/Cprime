@@ -78,6 +78,7 @@ auto Lexer::parse_token() -> Token
             {U'*', TokenKind::Star},
             {U'/', TokenKind::Slash},
             {U'%', TokenKind::Percent},
+            {U'=', TokenKind::Assign},
             {U';', TokenKind::Semicolon},
             {U',', TokenKind::Comma},
             {U'(', TokenKind::ParenOpen},

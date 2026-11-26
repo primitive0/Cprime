@@ -1,0 +1,5 @@
+fn I32 main() {
+    I32 x = 1;
+    I32 x = 2;
+    return x;
+}
