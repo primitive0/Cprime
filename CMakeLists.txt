@@ -19,15 +19,6 @@ add_library(utf8cpp::utf8cpp ALIAS utf8cpp)
 add_subdirectory(vendor/magic_enum EXCLUDE_FROM_ALL SYSTEM)
 add_subdirectory(vendor/cxxopts EXCLUDE_FROM_ALL SYSTEM)
 
-set(BOOST_SUPERPROJECT_VERSION 1.91.0)
-foreach(module IN ITEMS config assert move intrusive)
-  add_subdirectory(
-    "vendor/boost/${module}"
-    EXCLUDE_FROM_ALL
-    SYSTEM
-  )
-endforeach()
-
 
 add_subdirectory(src/)
 add_subdirectory(test/)

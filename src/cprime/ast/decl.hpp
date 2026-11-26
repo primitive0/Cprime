@@ -1,9 +1,9 @@
 #ifndef CPRIME_AST_DECL_H_
 #define CPRIME_AST_DECL_H_
 
+#include "list.hpp"
 #include "node.hpp"
 #include "stmt.hpp"
-#include <boost/intrusive/list.hpp>
 #include <cprime/support/prelude.hpp>
 #include <cprime/source/source_buffer.hpp>
 
@@ -11,16 +11,16 @@ namespace cprime::ast {
 
 class FunctionDecl final
     : public Node
-    , public boost::intrusive::list_base_hook<>
+    , public ListHook
 {
 public:
     explicit FunctionDecl(
         source::SourceSpan span,
         std::string_view name,
-        Block* body)
+        Block& body)
         : Node{NodeKind::FunctionDecl, span}
         , name_{name}
-        , body_{body}
+        , body_{&body}
     {
     }
 
@@ -29,9 +29,9 @@ public:
         return name_;
     }
 
-    auto body() -> Block*
+    auto body() -> Block&
     {
-        return body_;
+        return *body_;
     }
 
 private:

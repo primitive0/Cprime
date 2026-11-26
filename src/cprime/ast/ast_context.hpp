@@ -19,19 +19,19 @@ public:
     auto operator=(AstContext&&) -> AstContext& = delete;
 
     explicit AstContext()
-        : arena_{kArenaInitialSize}
+        : arena_{kArenaInitialBlockSize}
         , translation_unit_{nullptr}
     {
     }
 
     template<typename T, typename... Args>
-    auto make(Args&&... args) -> T*
+    auto make(Args&&... args) -> T&
     {
         void* storage = arena_.allocate(sizeof(T), alignof(T));
         // В случае возникновения исключения освобождать память нет
         // необходимости, так как аллокации происходят на арене. Обходимся без
         // блока try-catch.
-        return std::construct_at(
+        return *std::construct_at(
             static_cast<T*>(storage),
             std::forward<Args>(args)...);
     }
@@ -43,25 +43,24 @@ public:
         return std::pmr::string{str, &arena_};
     }
 
-    auto translation_unit() -> TranslationUnit*
+    auto translation_unit() -> TranslationUnit&
     {
         CPRIME_ASSERT(
             translation_unit_ != nullptr,
             "Translation unit is not set for this AstContext.");
-        return translation_unit_;
+        return *translation_unit_;
     }
 
-    auto set_translation_unit(TranslationUnit* translation_unit) -> void
+    auto set_translation_unit(TranslationUnit& translation_unit) -> void
     {
         CPRIME_ASSERT(
             translation_unit_ == nullptr,
             "Translation unit is already set for this AstContext.");
-        CPRIME_ASSERT(translation_unit != nullptr);
-        translation_unit_ = translation_unit;
+        translation_unit_ = &translation_unit;
     }
 
 private:
-    static constexpr size_t kArenaInitialSize = 64 * 1024; // 64 KiB
+    static constexpr size_t kArenaInitialBlockSize = 64 * 1024;
 
     std::pmr::monotonic_buffer_resource arena_;
     TranslationUnit* translation_unit_;

@@ -39,11 +39,10 @@ public:
     }
 
 private:
-    auto visit(ast::TranslationUnit* translation_unit) -> void
+    auto visit(ast::TranslationUnit& translation_unit) -> void
     {
-        for (ast::FunctionDecl& function_decl_ref : *translation_unit) {
-            ast::FunctionDecl* function_decl = &function_decl_ref;
-            if (function_decl->name() == "main") {
+        for (ast::FunctionDecl& function_decl : translation_unit.functions()) {
+            if (function_decl.name() == "main") {
                 visit(function_decl);
                 return;
             }
@@ -51,7 +50,7 @@ private:
         CPRIME_UNREACHABLE("main() function not found.");
     }
 
-    auto visit(ast::FunctionDecl* function_decl) -> void
+    auto visit(ast::FunctionDecl& function_decl) -> void
     {
         llvm::FunctionType* ir_func_signature = llvm::FunctionType::get(
             builder_.getInt32Ty(),
@@ -59,12 +58,12 @@ private:
         llvm::Function* ir_func = llvm::Function::Create(
             ir_func_signature,
             llvm::Function::ExternalLinkage,
-            function_decl->name(),
+            function_decl.name(),
             module_);
 
         builder_.SetInsertPoint(
             llvm::BasicBlock::Create(*llvm_context_, "entry", ir_func));
-        visit(function_decl->body());
+        visit(function_decl.body());
 
         // LLVM требует, чтобы все базовые блоки завершались терминальной
         // инструкцией.
@@ -73,73 +72,73 @@ private:
         }
     }
 
-    auto visit(ast::Block* block) -> void
+    auto visit(ast::Block& block) -> void
     {
-        for (ast::Stmt& stmt_ref : *block) {
-            dispatch_stmt(&stmt_ref);
+        for (ast::Stmt& stmt : block.stmts()) {
+            dispatch_stmt(stmt);
         }
     }
 
-    auto visit(ast::EmptyStmt*) -> void
+    auto visit(ast::EmptyStmt&) -> void
     {
     }
 
-    auto visit(ast::ReturnStmt* return_stmt) -> void
+    auto visit(ast::ReturnStmt& return_stmt) -> void
     {
         if (builder_.GetInsertBlock()->hasTerminator()) {
             return;
         }
 
-        ast::Expr* return_value = return_stmt->value();
+        ast::Expr& return_value = return_stmt.value();
         CPRIME_ASSERT(
-            return_value->kind() == ast::NodeKind::IntegerExpr,
+            return_value.kind() == ast::NodeKind::IntegerExpr,
             "Currently only integers are allowed in return statement.");
         i64 return_value_i64 =
-            static_cast<ast::IntegerExpr*>(return_value)->value();
+            static_cast<ast::IntegerExpr&>(return_value).value();
         i32 return_value_i32 = static_cast<i32>(return_value_i64);
 
         builder_.CreateRet(builder_.getInt32(return_value_i32));
     }
 
-    auto visit(ast::ExprStmt* expr_stmt) -> void
+    auto visit(ast::ExprStmt& expr_stmt) -> void
     {
         if (builder_.GetInsertBlock()->hasTerminator()) {
             return;
         }
 
-        std::ignore = dispatch_expr(expr_stmt->expr());
+        std::ignore = dispatch_expr(expr_stmt.expr());
     }
 
-    auto visit(ast::StringExpr* string_expr) -> llvm::Value*
+    auto visit(ast::StringExpr& string_expr) -> llvm::Value*
     {
         CPRIME_WIP();
     }
 
-    auto visit(ast::IntegerExpr* integer_expr) -> llvm::Value*
+    auto visit(ast::IntegerExpr& integer_expr) -> llvm::Value*
     {
         // Целочисленный литерал в C' имеет тип I32.
-        return builder_.getInt32(static_cast<u32>(integer_expr->value()));
+        return builder_.getInt32(static_cast<u32>(integer_expr.value()));
     }
 
-    auto visit(ast::NameExpr* name_expr) -> llvm::Value*
+    auto visit(ast::NameExpr& name_expr) -> llvm::Value*
     {
         CPRIME_WIP();
     }
 
-    auto visit(ast::CallExpr* call_expr) -> llvm::Value*
+    auto visit(ast::CallExpr& call_expr) -> llvm::Value*
     {
-        switch (call_expr->callee_kind()) {
+        switch (call_expr.callee_kind()) {
         case ast::CalleeKind::BuiltinPrint:
-            return emit_print_call(call_expr->args());
+            return emit_print_call(call_expr.args());
         case ast::CalleeKind::BuiltinPrintln:
-            return emit_println_call(call_expr->args());
+            return emit_println_call(call_expr.args());
         case ast::CalleeKind::Function:
             CPRIME_WIP();
         }
         CPRIME_UNREACHABLE("Unknown callee kind.");
     }
 
-    auto emit_println_call(ast::ExprList* args) -> llvm::Value*
+    auto emit_println_call(ast::ExprList& args) -> llvm::Value*
     {
         emit_print_call(args);
         builder_.CreateCall(
@@ -152,21 +151,19 @@ private:
     }
 
     // TODO: refactor this method later
-    auto emit_print_call(ast::ExprList* args) -> llvm::Value*
+    auto emit_print_call(ast::ExprList& args) -> llvm::Value*
     {
         llvm::FunctionCallee printf_ir_callee = get_printf_ir_callee();
-        for (ast::Expr& expr_ref : *args) {
-            ast::Expr* expr = &expr_ref;
-
-            switch (expr->kind()) {
+        for (ast::Expr& expr : args.exprs()) {
+            switch (expr.kind()) {
             case ast::NodeKind::StringExpr: {
-                auto* string_expr = static_cast<ast::StringExpr*>(expr);
+                auto& string_expr = static_cast<ast::StringExpr&>(expr);
                 builder_.CreateCall(
                     printf_ir_callee,
                     {
                         builder_.CreateGlobalString("%s"),
                         builder_.CreateGlobalString(
-                            std::string_view{string_expr->value()}),
+                            std::string_view{string_expr.value()}),
                     });
                 break;
             }
@@ -205,13 +202,13 @@ private:
         return module_->getOrInsertFunction("puts", signature);
     }
 
-    auto visit(ast::UnaryExpr* unary_expr) -> llvm::Value*
+    auto visit(ast::UnaryExpr& unary_expr) -> llvm::Value*
     {
-        llvm::Value* operand = dispatch_expr(unary_expr->operand());
-        switch (unary_expr->op()) {
+        llvm::Value* operand = dispatch_expr(unary_expr.operand());
+        switch (unary_expr.op()) {
         case ast::UnaryOp::Minus:
             // Про флаг NSW смотрите комментарий в
-            // LowerToLlvmModule::visit(ast::BinaryExpr*).
+            // LowerToLlvmModule::visit(ast::BinaryExpr&).
             return builder_.CreateNSWNeg(operand, "neg_tmp");
         case ast::UnaryOp::Increment:
             CPRIME_WIP();
@@ -221,20 +218,20 @@ private:
         CPRIME_UNREACHABLE("Unknown unary operator.");
     }
 
-    auto visit(ast::BinaryExpr* binary_expr) -> llvm::Value*
+    auto visit(ast::BinaryExpr& binary_expr) -> llvm::Value*
     {
         // This is implementation of signed arithmetic operations.
         // TODO: move this implementation to separate emit_X function.
 
-        llvm::Value* left = dispatch_expr(binary_expr->left());
-        llvm::Value* right = dispatch_expr(binary_expr->right());
+        llvm::Value* left = dispatch_expr(binary_expr.left());
+        llvm::Value* right = dispatch_expr(binary_expr.right());
 
         // Согласно спецификации C' знаковое переполнение --- это неопределённое
         // поведение. Для передачи информации в LLVM о том, что знаковое
         // переполнение невозможно, используем флаг NSW для инструкций add, sub
         // и mul. Знаковое переполнение в sdiv и srem --- это и так
         // неопределённое поведение.
-        switch (binary_expr->op()) {
+        switch (binary_expr.op()) {
         case ast::BinaryOp::Add:
             return builder_.CreateNSWAdd(left, right, "add_tmp");
         case ast::BinaryOp::Sub:

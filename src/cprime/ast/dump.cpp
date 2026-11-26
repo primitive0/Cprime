@@ -4,7 +4,6 @@
 #include "expr.hpp"
 #include "stmt.hpp"
 #include "translation_unit.hpp"
-#include <iterator>
 #include <ostream>
 #include <type_traits>
 #include <unordered_set>
@@ -37,7 +36,7 @@ public:
     {
     }
 
-    auto dump(TranslationUnit* translation_unit) -> void
+    auto dump(TranslationUnit& translation_unit) -> void
     {
         visit(translation_unit);
     }
@@ -77,123 +76,122 @@ private:
         SyntaxAstDumper* dumper_;
     };
 
-    auto visit(TranslationUnit* translation_unit) -> void
+    auto visit(TranslationUnit& translation_unit) -> void
     {
-        node("TranslationUnit", translation_unit->span());
+        node("TranslationUnit", translation_unit.span());
         node_end();
 
         ChildLevelGuard guard{*this};
         dump_children(
-            translation_unit->begin(),
-            translation_unit->end(),
+            translation_unit.functions(),
             /*is_last=*/true);
     }
 
-    auto visit(FunctionDecl* function_decl) -> void
+    auto visit(FunctionDecl& function_decl) -> void
     {
-        node("FunctionDecl", function_decl->span());
-        node_attr(function_decl->name());
+        node("FunctionDecl", function_decl.span());
+        node_attr(function_decl.name());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_child(function_decl->body(), /*is_last=*/true);
+        dump_child(function_decl.body(), /*is_last=*/true);
     }
 
-    auto visit(Block* block) -> void
+    auto visit(Block& block) -> void
     {
-        node("Block", block->span());
+        node("Block", block.span());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_children(block->begin(), block->end(), /*is_last=*/true);
+        dump_children(block.stmts(), /*is_last=*/true);
     }
 
-    auto visit(EmptyStmt* empty_stmt) -> void
+    auto visit(EmptyStmt& empty_stmt) -> void
     {
-        node("EmptyStmt", empty_stmt->span());
+        node("EmptyStmt", empty_stmt.span());
         node_end();
     }
 
-    auto visit(ReturnStmt* return_stmt) -> void
+    auto visit(ReturnStmt& return_stmt) -> void
     {
-        node("ReturnStmt", return_stmt->span());
-        node_end();
-
-        ChildLevelGuard guard{*this};
-        dump_child(return_stmt->value(), /*is_last=*/true);
-    }
-
-    auto visit(ExprStmt* expr_stmt) -> void
-    {
-        node("ExprStmt", expr_stmt->span());
+        node("ReturnStmt", return_stmt.span());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_child(expr_stmt->expr(), /*is_last=*/true);
+        dump_child(return_stmt.value(), /*is_last=*/true);
     }
 
-    auto visit(ExprList* expr_list) -> void
+    auto visit(ExprStmt& expr_stmt) -> void
     {
-        node("ExprList", expr_list->span());
+        node("ExprStmt", expr_stmt.span());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_children(expr_list->begin(), expr_list->end(), /*is_last=*/true);
+        dump_child(expr_stmt.expr(), /*is_last=*/true);
     }
 
-    auto visit(StringExpr* string_expr) -> void
+    auto visit(ExprList& expr_list) -> void
     {
-        node("StringExpr", string_expr->span());
-        os_ << " " << string_expr->span().content();
+        node("ExprList", expr_list.span());
+        node_end();
+
+        ChildLevelGuard guard{*this};
+        dump_children(expr_list.exprs(), /*is_last=*/true);
+    }
+
+    auto visit(StringExpr& string_expr) -> void
+    {
+        node("StringExpr", string_expr.span());
+        os_ << " " << string_expr.span().content();
         node_end();
     }
 
-    auto visit(IntegerExpr* integer_expr) -> void
+    auto visit(IntegerExpr& integer_expr) -> void
     {
-        node("IntegerExpr", integer_expr->span());
-        os_ << " " << integer_expr->span().content();
+        node("IntegerExpr", integer_expr.span());
+        os_ << " " << integer_expr.span().content();
         node_end();
     }
 
-    auto visit(NameExpr* name_expr) -> void
+    auto visit(NameExpr& name_expr) -> void
     {
-        node("NameExpr", name_expr->span());
-        node_attr(name_expr->name());
+        node("NameExpr", name_expr.span());
+        node_attr(name_expr.name());
         node_end();
     }
 
-    auto visit(CallExpr* call_expr) -> void
+    auto visit(CallExpr& call_expr) -> void
     {
-        node("CallExpr", call_expr->span());
-        node_attr(call_expr->callee());
-        if (call_expr->is_builtin_call()) {
+        node("CallExpr", call_expr.span());
+        node_attr(call_expr.callee());
+        if (call_expr.is_builtin_call()) {
             node_tag("builtin");
         }
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_child(call_expr->args(), /*is_last=*/true);
+        dump_child(call_expr.args(), /*is_last=*/true);
     }
 
-    auto visit(UnaryExpr* unary_expr) -> void
+    auto visit(UnaryExpr& unary_expr) -> void
     {
-        node("UnaryExpr", unary_expr->span());
-        node_attr(unary_expr->op());
+        node("UnaryExpr", unary_expr.span());
+        node_attr(unary_expr.op());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_child(unary_expr->operand(), /*is_last=*/true);
+        dump_child(unary_expr.operand(), /*is_last=*/true);
     }
 
-    auto visit(BinaryExpr* binary_expr) -> void
+    auto visit(BinaryExpr& binary_expr) -> void
     {
-        node("BinaryExpr", binary_expr->span());
-        node_attr(binary_expr->op());
+        node("BinaryExpr", binary_expr.span());
+        node_attr(binary_expr.op());
         node_end();
 
         ChildLevelGuard guard{*this};
-        dump_child(binary_expr->left());
-        dump_child(binary_expr->right(), /*is_last=*/true);
+        dump_child(binary_expr.left());
+        dump_child(binary_expr.right(), /*is_last=*/true);
     }
 
     auto node(std::string_view name, source::SourceSpan span) -> void
@@ -260,21 +258,16 @@ private:
         CPRIME_UNREACHABLE("Unknown binary operator kind.");
     }
 
-    template<std::bidirectional_iterator It>
-    auto dump_children(It begin, It end, bool is_last = false) -> void
+    template<typename T>
+    auto dump_children(List<T>& children, bool is_last = false) -> void
     {
-        if (begin == end) {
-            return;
+        for (T& child : children) {
+            dump_child(child, is_last && &child == &children.back());
         }
-        It last = std::prev(end);
-        for (It current = begin; current != last; ++current) {
-            dump_child(&*current);
-        }
-        dump_child(&*last, is_last);
     }
 
     template<typename T>
-    auto dump_child(T child, bool is_last = false) -> void
+    auto dump_child(T& child, bool is_last = false) -> void
     {
         CPRIME_DEBUG_ASSERT(depth_ > 0);
 
@@ -296,11 +289,11 @@ private:
     }
 
     template<typename T>
-    auto dispatch(T child) -> void
+    auto dispatch(T& child) -> void
     {
-        if constexpr (std::is_same_v<decltype(child), Stmt*>) {
+        if constexpr (std::is_same_v<T, Stmt>) {
             return dispatch_stmt(child);
-        } else if constexpr (std::is_same_v<decltype(child), Expr*>) {
+        } else if constexpr (std::is_same_v<T, Expr>) {
             return dispatch_expr(child);
         } else {
             return visit(child);
@@ -320,10 +313,8 @@ private:
 
 auto dump_syntax_ast(
     std::ostream& os,
-    TranslationUnit* translation_unit) -> void
+    TranslationUnit& translation_unit) -> void
 {
-    CPRIME_DEBUG_ASSERT(translation_unit != nullptr);
-
     SyntaxAstDumper{os}.dump(translation_unit);
 }
 

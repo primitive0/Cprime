@@ -1,9 +1,9 @@
 #ifndef CPRIME_AST_EXPR_H_
 #define CPRIME_AST_EXPR_H_
 
+#include "list.hpp"
 #include "node.hpp"
 #include <magic_enum/magic_enum.hpp>
-#include <boost/intrusive/list.hpp>
 #include <cprime/support/prelude.hpp>
 #include <cprime/source/source_buffer.hpp>
 #include <cprime/support/contract.hpp>
@@ -12,7 +12,7 @@ namespace cprime::ast {
 
 class Expr
     : public Node
-    , public boost::intrusive::list_base_hook<>
+    , public ListHook
 {
 protected:
     explicit Expr(NodeKind kind, source::SourceSpan span)
@@ -25,28 +25,20 @@ protected:
 
 class ExprList final : public Node
 {
-private:
-    using InnerListType = boost::intrusive::list<Expr>;
-
 public:
-    explicit ExprList(source::SourceSpan span, InnerListType exprs)
+    explicit ExprList(source::SourceSpan span, List<Expr> exprs)
         : Node{NodeKind::ExprList, span}
         , exprs_{std::move(exprs)}
     {
     }
 
-    auto begin() -> InnerListType::iterator
+    auto exprs() -> List<Expr>&
     {
-        return exprs_.begin();
-    }
-
-    auto end() -> InnerListType::iterator
-    {
-        return exprs_.end();
+        return exprs_;
     }
 
 private:
-    InnerListType exprs_;
+    List<Expr> exprs_;
 };
 
 class StringExpr final : public Expr
@@ -117,10 +109,10 @@ public:
     explicit CallExpr(
         source::SourceSpan span,
         std::string_view callee,
-        ExprList* args)
+        ExprList& args)
         : Expr{NodeKind::CallExpr, span}
         , callee_{callee}
-        , args_{args}
+        , args_{&args}
         , callee_kind_{get_callee_kind(callee)}
     {
     }
@@ -130,9 +122,9 @@ public:
         return callee_;
     }
 
-    auto args() -> ExprList*
+    auto args() -> ExprList&
     {
-        return args_;
+        return *args_;
     }
 
     auto callee_kind() -> CalleeKind
@@ -174,10 +166,10 @@ enum class UnaryOp {
 class UnaryExpr final : public Expr
 {
 public:
-    explicit UnaryExpr(source::SourceSpan span, UnaryOp op, Expr* operand)
+    explicit UnaryExpr(source::SourceSpan span, UnaryOp op, Expr& operand)
         : Expr{NodeKind::UnaryExpr, span}
         , op_{op}
-        , operand_{operand}
+        , operand_{&operand}
     {
     }
 
@@ -186,9 +178,9 @@ public:
         return op_;
     }
 
-    auto operand() -> Expr*
+    auto operand() -> Expr&
     {
-        return operand_;
+        return *operand_;
     }
 
 private:
@@ -210,11 +202,11 @@ public:
     explicit BinaryExpr(
         source::SourceSpan span,
         BinaryOp op,
-        Expr* left, Expr* right)
+        Expr& left, Expr& right)
         : Expr{NodeKind::BinaryExpr, span}
         , op_{op}
-        , left_{left}
-        , right_{right}
+        , left_{&left}
+        , right_{&right}
     {
     }
 
@@ -223,14 +215,14 @@ public:
         return op_;
     }
 
-    auto left() -> Expr*
+    auto left() -> Expr&
     {
-        return left_;
+        return *left_;
     }
 
-    auto right() -> Expr*
+    auto right() -> Expr&
     {
-        return right_;
+        return *right_;
     }
 
 private:
@@ -247,31 +239,29 @@ protected:
 
     template<typename Self>
     [[nodiscard]]
-    auto dispatch_expr(this Self&& self, Expr* expr) -> ReturnType
+    auto dispatch_expr(this Self&& self, Expr& expr) -> ReturnType
     {
-        CPRIME_DEBUG_ASSERT(expr != nullptr);
-
-        auto call_visit = [&self](auto concrete_expr) -> ReturnType {
+        auto call_visit = [&self](auto& concrete_expr) -> ReturnType {
             return std::forward<Self>(self).visit(concrete_expr);
         };
 
-        switch (expr->kind()) {
+        switch (expr.kind()) {
         case NodeKind::StringExpr:
-            return call_visit(static_cast<StringExpr*>(expr));
+            return call_visit(static_cast<StringExpr&>(expr));
         case NodeKind::IntegerExpr:
-            return call_visit(static_cast<IntegerExpr*>(expr));
+            return call_visit(static_cast<IntegerExpr&>(expr));
         case NodeKind::NameExpr:
-            return call_visit(static_cast<NameExpr*>(expr));
+            return call_visit(static_cast<NameExpr&>(expr));
         case NodeKind::CallExpr:
-            return call_visit(static_cast<CallExpr*>(expr));
+            return call_visit(static_cast<CallExpr&>(expr));
         case NodeKind::UnaryExpr:
-            return call_visit(static_cast<UnaryExpr*>(expr));
+            return call_visit(static_cast<UnaryExpr&>(expr));
         case NodeKind::BinaryExpr:
-            return call_visit(static_cast<BinaryExpr*>(expr));
+            return call_visit(static_cast<BinaryExpr&>(expr));
         default:
             CPRIME_UNREACHABLE(
                 "Unknown expression kind NodeKind::{}.",
-                magic_enum::enum_name(expr->kind()));
+                magic_enum::enum_name(expr.kind()));
         }
     }
 };

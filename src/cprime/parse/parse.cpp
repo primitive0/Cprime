@@ -4,7 +4,6 @@
 #include <format>
 #include <limits>
 #include <tuple>
-#include <boost/intrusive/list.hpp>
 #include <cprime/ast/ast.hpp>
 #include <cprime/diagnostics/diagnostic_sink.hpp>
 #include <cprime/lex/lex.hpp>
@@ -62,12 +61,12 @@ public:
     }
 
 private:
-    auto parse_translation_unit() -> ast::TranslationUnit*
+    auto parse_translation_unit() -> ast::TranslationUnit&
     {
-        boost::intrusive::list<ast::FunctionDecl> functions{};
+        ast::List<ast::FunctionDecl> functions{};
         while (token_.kind() != TokenKind::Eof) {
             try {
-                functions.push_back(*parse_function_decl());
+                functions.push_back(parse_function_decl());
             } catch (const ParsePanic&) {
                 skip_until({TokenKind::Fn});
             }
@@ -83,7 +82,7 @@ private:
             std::move(functions));
     }
 
-    auto parse_function_decl() -> ast::FunctionDecl*
+    auto parse_function_decl() -> ast::FunctionDecl&
     {
         SourceMarker marker = start_capturing();
 
@@ -92,7 +91,7 @@ private:
         std::string_view name = match(TokenKind::Identifier).lexeme();
         match(TokenKind::ParenOpen);
         match(TokenKind::ParenClose);
-        ast::Block* body = parse_block();
+        ast::Block& body = parse_block();
 
         return ast_context_->make<ast::FunctionDecl>(
             capture_span(marker),
@@ -100,16 +99,16 @@ private:
             body);
     }
 
-    auto parse_block() -> ast::Block*
+    auto parse_block() -> ast::Block&
     {
         SourceMarker marker = start_capturing();
 
         match(TokenKind::BraceOpen);
 
-        boost::intrusive::list<ast::Stmt> stmts{};
+        ast::List<ast::Stmt> stmts{};
         while (token_.kind() != TokenKind::BraceClose) {
             try {
-                stmts.push_back(*parse_stmt());
+                stmts.push_back(parse_stmt());
             } catch (const ParsePanic&) {
                 if (token_.kind() == TokenKind::Eof ||
                     token_.kind() == TokenKind::Fn)
@@ -138,7 +137,7 @@ private:
             std::move(stmts));
     }
 
-    auto parse_stmt() -> ast::Stmt*
+    auto parse_stmt() -> ast::Stmt&
     {
         switch (token_.kind()) {
         case TokenKind::Semicolon:
@@ -150,7 +149,7 @@ private:
         }
     }
 
-    auto parse_empty_stmt() -> ast::EmptyStmt*
+    auto parse_empty_stmt() -> ast::EmptyStmt&
     {
         SourceMarker marker = start_capturing();
 
@@ -159,12 +158,12 @@ private:
         return ast_context_->make<ast::EmptyStmt>(capture_span(marker));
     }
 
-    auto parse_return_stmt() -> ast::ReturnStmt*
+    auto parse_return_stmt() -> ast::ReturnStmt&
     {
         SourceMarker marker = start_capturing();
 
         match(TokenKind::Return);
-        ast::Expr* value = parse_expr();
+        ast::Expr& value = parse_expr();
         match(TokenKind::Semicolon);
 
         return ast_context_->make<ast::ReturnStmt>(
@@ -172,11 +171,11 @@ private:
             value);
     }
 
-    auto parse_expr_stmt() -> ast::ExprStmt*
+    auto parse_expr_stmt() -> ast::ExprStmt&
     {
         SourceMarker marker = start_capturing();
 
-        ast::Expr* expr = parse_expr();
+        ast::Expr& expr = parse_expr();
         match(TokenKind::Semicolon);
 
         return ast_context_->make<ast::ExprStmt>(
@@ -184,23 +183,23 @@ private:
             expr);
     }
 
-    auto parse_expr_list(TokenKind terminator) -> ast::ExprList*
+    auto parse_expr_list(TokenKind terminator) -> ast::ExprList&
     {
         SourceMarker marker = start_capturing();
 
         if (token_.kind() == terminator) {
             return ast_context_->make<ast::ExprList>(
                 capture_span(marker),
-                boost::intrusive::list<ast::Expr>{});
+                ast::List<ast::Expr>{});
         }
 
-        boost::intrusive::list<ast::Expr> exprs{};
+        ast::List<ast::Expr> exprs{};
         while (true) {
             // TODO: Реализовать error recovery при разборе выражений.
             //
             // Допустим, мы решили реализовать наивный вариант error recovery:
             //   try {
-            //       exprs.push_back(*parse_expr());
+            //       exprs.push_back(parse_expr());
             //   } catch (const ParsePanic&) {
             //       skip_until({TokenKind::Comma, terminator});
             //   }
@@ -217,7 +216,7 @@ private:
             // При разборе вызова println() парсер выйдет за границы функции
             // foo(), что сделает дальнейший синтаксический анализ невозможным.
 
-            exprs.push_back(*parse_expr());
+            exprs.push_back(parse_expr());
             if (token_.kind() == terminator) {
                 return ast_context_->make<ast::ExprList>(
                     capture_span(marker),
@@ -231,12 +230,12 @@ private:
         }
     }
 
-    auto parse_expr() -> ast::Expr*
+    auto parse_expr() -> ast::Expr&
     {
         return parse_expr_bp(0);
     }
 
-    auto parse_expr_bp(i32 min_bp) -> ast::Expr*
+    auto parse_expr_bp(i32 min_bp) -> ast::Expr&
     {
         // Реализуем разбор бинарных выражений, используя Pratt parsing, также
         // известный как precedence climbing (хотя Википедия почему-то считает
@@ -275,7 +274,7 @@ private:
 
         SourceMarker marker = start_capturing();
 
-        ast::Expr* lhs = parse_prefix_expr();
+        ast::Expr* lhs = &parse_prefix_expr();
         while (true) {
             auto [op, l_bp, r_bp] = get_binary_op_bp(token_.kind());
 
@@ -291,25 +290,25 @@ private:
             }
 
             advance();
-            ast::Expr* rhs = parse_expr_bp(r_bp);
+            ast::Expr& rhs = parse_expr_bp(r_bp);
 
-            lhs = ast_context_->make<ast::BinaryExpr>(
+            lhs = &ast_context_->make<ast::BinaryExpr>(
                 capture_span(marker),
                 op,
-                lhs,
+                *lhs,
                 rhs);
         }
-        return lhs;
+        return *lhs;
     }
 
-    auto parse_prefix_expr() -> ast::Expr*
+    auto parse_prefix_expr() -> ast::Expr&
     {
         SourceMarker marker = start_capturing();
 
         switch (token_.kind()) {
         case TokenKind::Minus: {
             advance();
-            ast::Expr* operand = parse_prefix_expr();
+            ast::Expr& operand = parse_prefix_expr();
 
             return ast_context_->make<ast::UnaryExpr>(
                 capture_span(marker),
@@ -323,7 +322,7 @@ private:
         }
     }
 
-    auto parse_primary_expr() -> ast::Expr*
+    auto parse_primary_expr() -> ast::Expr&
     {
         SourceMarker marker = start_capturing();
 
@@ -342,7 +341,7 @@ private:
             // Вызов функции в C' является первичным выражением, поэтому
             // обрабатываем его здесь.
             advance();
-            ast::ExprList* args = parse_expr_list(TokenKind::ParenClose);
+            ast::ExprList& args = parse_expr_list(TokenKind::ParenClose);
             match(TokenKind::ParenClose);
 
             return ast_context_->make<ast::CallExpr>(

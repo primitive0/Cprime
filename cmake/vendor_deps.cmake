@@ -86,21 +86,3 @@ VendorDependency(
   SOURCE_DIR "cxxopts"
   URL        "https://github.com/jarro2783/cxxopts/archive/refs/tags/v3.3.1.tar.gz"
   URL_HASH   "SHA256=3bfc70542c521d4b55a46429d808178916a579b28d048bd8c727ee76c39e2072")
-
-set(BOOST_VERSION "1.91.0")
-VendorDependency(
-  SOURCE_DIR "boost/config"
-  URL        "https://github.com/boostorg/config/archive/refs/tags/boost-${BOOST_VERSION}.tar.gz"
-  URL_HASH   "SHA256=e69618fa862927db69b4dd8e6b070c647a799b892fd0ee141d28db0dab025531")
-VendorDependency(
-  SOURCE_DIR "boost/assert"
-  URL        "https://github.com/boostorg/assert/archive/refs/tags/boost-${BOOST_VERSION}.tar.gz"
-  URL_HASH   "SHA256=9145fba14048a46c0f65e5b28e68176d568148957ebf9bdf9e82bcc5d5a703a9")
-VendorDependency(
-  SOURCE_DIR "boost/move"
-  URL        "https://github.com/boostorg/move/archive/refs/tags/boost-${BOOST_VERSION}.tar.gz"
-  URL_HASH   "SHA256=9c0c45d240bcdebc0305e19c376746be082614401769366fa99de6968e2522ac")
-VendorDependency(
-  SOURCE_DIR "boost/intrusive"
-  URL        "https://github.com/boostorg/intrusive/archive/refs/tags/boost-${BOOST_VERSION}.tar.gz"
-  URL_HASH   "SHA256=9709c94d0cb96d26c9cb325b842f300c1c067579907d34604d716f86556ae794")

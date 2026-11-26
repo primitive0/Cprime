@@ -12,7 +12,7 @@ class TranslationUnit;
 // Семантические атрибуты не включаются в результат.
 auto dump_syntax_ast(
     std::ostream& os,
-    TranslationUnit* translation_unit) -> void;
+    TranslationUnit& translation_unit) -> void;
 
 } // namespace cprime::ast
 

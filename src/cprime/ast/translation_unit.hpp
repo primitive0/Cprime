@@ -2,8 +2,8 @@
 #define CPRIME_AST_TRANSLATIONUNIT_H_
 
 #include "decl.hpp"
+#include "list.hpp"
 #include "node.hpp"
-#include <boost/intrusive/list.hpp>
 #include <cprime/support/prelude.hpp>
 #include <cprime/source/source_buffer.hpp>
 
@@ -11,30 +11,22 @@ namespace cprime::ast {
 
 class TranslationUnit final : public Node
 {
-private:
-    using FunctionListType = boost::intrusive::list<FunctionDecl>;
-
 public:
     explicit TranslationUnit(
         source::SourceSpan span,
-        FunctionListType functions)
+        List<FunctionDecl> functions)
         : Node{NodeKind::TranslationUnit, span}
         , functions_{std::move(functions)}
     {
     }
 
-    auto begin() -> FunctionListType::iterator
+    auto functions() -> List<FunctionDecl>&
     {
-        return functions_.begin();
-    }
-
-    auto end() -> FunctionListType::iterator
-    {
-        return functions_.end();
+        return functions_;
     }
 
 private:
-    FunctionListType functions_;
+    List<FunctionDecl> functions_;
 };
 
 } // namespace cprime::ast

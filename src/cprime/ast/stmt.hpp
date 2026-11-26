@@ -2,9 +2,9 @@
 #define CPRIME_AST_STMT_H_
 
 #include "expr.hpp"
+#include "list.hpp"
 #include "node.hpp"
 #include <magic_enum/magic_enum.hpp>
-#include <boost/intrusive/list.hpp>
 #include <cprime/support/prelude.hpp>
 #include <cprime/source/source_buffer.hpp>
 #include <cprime/support/contract.hpp>
@@ -13,7 +13,7 @@ namespace cprime::ast {
 
 class Stmt
     : public Node
-    , public boost::intrusive::list_base_hook<>
+    , public ListHook
 {
 protected:
     explicit Stmt(NodeKind kind, source::SourceSpan span)
@@ -22,32 +22,6 @@ protected:
     }
 
     ~Stmt() = default;
-};
-
-class Block final : public Node
-{
-private:
-    using InnerListType = boost::intrusive::list<Stmt>;
-
-public:
-    explicit Block(source::SourceSpan span, InnerListType stmts)
-        : Node{NodeKind::Block, span}
-        , stmts_{std::move(stmts)}
-    {
-    }
-
-    auto begin() -> InnerListType::iterator
-    {
-        return stmts_.begin();
-    }
-
-    auto end() -> InnerListType::iterator
-    {
-        return stmts_.end();
-    }
-
-private:
-    InnerListType stmts_;
 };
 
 class EmptyStmt final : public Stmt
@@ -62,15 +36,15 @@ public:
 class ReturnStmt final : public Stmt
 {
 public:
-    explicit ReturnStmt(source::SourceSpan span, Expr* value)
+    explicit ReturnStmt(source::SourceSpan span, Expr& value)
         : Stmt{NodeKind::ReturnStmt, span}
-        , value_{value}
+        , value_{&value}
     {
     }
 
-    auto value() -> Expr*
+    auto value() -> Expr&
     {
-        return value_;
+        return *value_;
     }
 
 private:
@@ -80,15 +54,15 @@ private:
 class ExprStmt final : public Stmt
 {
 public:
-    explicit ExprStmt(source::SourceSpan span, Expr* expr)
+    explicit ExprStmt(source::SourceSpan span, Expr& expr)
         : Stmt{NodeKind::ExprStmt, span}
-        , expr_{expr}
+        , expr_{&expr}
     {
     }
 
-    auto expr() -> Expr*
+    auto expr() -> Expr&
     {
-        return expr_;
+        return *expr_;
     }
 
 private:
@@ -103,27 +77,43 @@ protected:
 
     template<typename Self>
     [[nodiscard]]
-    auto dispatch_stmt(this Self&& self, Stmt* stmt) -> ReturnType
+    auto dispatch_stmt(this Self&& self, Stmt& stmt) -> ReturnType
     {
-        CPRIME_DEBUG_ASSERT(stmt != nullptr);
-
-        auto call_visit = [&self](auto concrete_stmt) -> ReturnType {
+        auto call_visit = [&self](auto& concrete_stmt) -> ReturnType {
             return std::forward<Self>(self).visit(concrete_stmt);
         };
 
-        switch (stmt->kind()) {
+        switch (stmt.kind()) {
         case NodeKind::EmptyStmt:
-            return call_visit(static_cast<EmptyStmt*>(stmt));
+            return call_visit(static_cast<EmptyStmt&>(stmt));
         case NodeKind::ReturnStmt:
-            return call_visit(static_cast<ReturnStmt*>(stmt));
+            return call_visit(static_cast<ReturnStmt&>(stmt));
         case NodeKind::ExprStmt:
-            return call_visit(static_cast<ExprStmt*>(stmt));
+            return call_visit(static_cast<ExprStmt&>(stmt));
         default:
             CPRIME_UNREACHABLE(
                 "Unknown statement kind NodeKind::{}.",
-                magic_enum::enum_name(stmt->kind()));
+                magic_enum::enum_name(stmt.kind()));
         }
     }
+};
+
+class Block final : public Node
+{
+public:
+    explicit Block(source::SourceSpan span, List<Stmt> stmts)
+        : Node{NodeKind::Block, span}
+        , stmts_{std::move(stmts)}
+    {
+    }
+
+    auto stmts() -> List<Stmt>&
+    {
+        return stmts_;
+    }
+
+private:
+    List<Stmt> stmts_;
 };
 
 } // namespace cprime::ast
